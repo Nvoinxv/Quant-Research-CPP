@@ -6,11 +6,12 @@
 namespace quant::data
 {
 
-std::vector<Candle> CSVReader::read(
+std::vector<quant::market::Candle>
+CSVReader::read(
     const std::filesystem::path& filepath
 ) const
 {
-    std::vector<Candle> candles;
+    std::vector<quant::market::Candle> candles;
 
     std::ifstream file(filepath);
 
@@ -19,18 +20,29 @@ std::vector<Candle> CSVReader::read(
 
     std::string line;
 
+    // Skip header
     std::getline(file, line);
 
     while (std::getline(file, line))
     {
         std::stringstream ss(line);
 
-        Candle candle;
+        quant::market::Candle candle;
 
         std::string value;
 
-        std::getline(ss, candle.timestamp, ',');
+        // Symbol
+        std::getline(ss, candle.symbol, ',');
 
+        // Open Time
+        std::getline(ss, value, ',');
+        candle.openTime = std::stoll(value);
+
+        // Close Time
+        std::getline(ss, value, ',');
+        candle.closeTime = std::stoll(value);
+
+        // OHLC
         std::getline(ss, value, ',');
         candle.open = std::stod(value);
 
@@ -43,13 +55,30 @@ std::vector<Candle> CSVReader::read(
         std::getline(ss, value, ',');
         candle.close = std::stod(value);
 
+        // Volume
         std::getline(ss, value, ',');
         candle.volume = std::stod(value);
 
-        candles.push_back(candle);
+        // Quote Volume
+        std::getline(ss, value, ',');
+        candle.quoteVolume = std::stod(value);
+
+        // Trade Count
+        std::getline(ss, value, ',');
+        candle.tradeCount = std::stoull(value);
+
+        // Taker Buy Base Volume
+        std::getline(ss, value, ',');
+        candle.takerBuyBaseVolume = std::stod(value);
+
+        // Taker Buy Quote Volume
+        std::getline(ss, value, ',');
+        candle.takerBuyQuoteVolume = std::stod(value);
+
+        candles.emplace_back(std::move(candle));
     }
 
     return candles;
 }
 
-}
+} // namespace quant::data

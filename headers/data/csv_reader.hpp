@@ -13,9 +13,7 @@ class CSVReader
 public:
     CSVReader() = default;
 
-    std::vector<Candle> read(
-        const std::filesystem::path& filepath
-    ) const;
+    std::vector<quant::market::Candle>
 };
 
 }
