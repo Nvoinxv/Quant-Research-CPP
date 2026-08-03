@@ -148,25 +148,31 @@ BinanceLoader::parseResponse(
     {
         market::Candle candle;
 
-        candle.timestamp =
-            std::to_string(row[0].get<long long>());
+        candle.symbol = symbol;
 
-        candle.open =
-            std::stod(row[1].get<std::string>());
+        candle.openTime = row[0].get<std::int64_t>();
 
-        candle.high =
-            std::stod(row[2].get<std::string>());
+        candle.open = std::stod(row[1].get<std::string>());
 
-        candle.low =
-            std::stod(row[3].get<std::string>());
+        candle.high = std::stod(row[2].get<std::string>());
 
-        candle.close =
-            std::stod(row[4].get<std::string>());
+        candle.low = std::stod(row[3].get<std::string>());
 
-        candle.volume =
-            std::stod(row[5].get<std::string>());
+        candle.close = std::stod(row[4].get<std::string>());
 
-        candles.push_back(candle);
+        candle.volume = std::stod(row[5].get<std::string>());
+
+        candle.closeTime = row[6].get<std::int64_t>();
+
+        candle.quoteVolume = std::stod(row[7].get<std::string>());
+
+        candle.tradeCount = row[8].get<std::uint64_t>();
+
+        candle.takerBuyBaseVolume = std::stod(row[9].get<std::string>());
+
+        candle.takerBuyQuoteVolume = std::stod(row[10].get<std::string>());
+
+        candles.emplace_back(std::move(candle));
     }
 
     return candles;
