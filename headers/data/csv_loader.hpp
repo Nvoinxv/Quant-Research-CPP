@@ -1,23 +1,13 @@
 #pragma once
 
+#include "market/candle.hpp"
+
 #include <filesystem>
-#include <string>
+#include <fstream>
 #include <vector>
 
 namespace quant::data
 {
-
-struct Candle
-{
-    std::string timestamp;
-
-    double open;
-    double high;
-    double low;
-    double close;
-
-    double volume;
-};
 
 class CSVWriter
 {
@@ -26,7 +16,7 @@ public:
 
     bool write(
         const std::filesystem::path& filepath,
-        const std::vector<Candle>& candles,
+        const std::vector<quant::market::Candle>& candles,
         bool overwrite = true
     ) const;
 

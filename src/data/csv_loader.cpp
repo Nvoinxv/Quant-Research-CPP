@@ -1,4 +1,4 @@
-#include "data/csv_writer.hpp"
+#include "data/csv_loader.hpp"
 
 #include <fstream>
 #include <iomanip>
@@ -8,12 +8,24 @@ namespace quant::data
 
 void CSVWriter::writeHeader(std::ofstream& file) const
 {
-    file << "timestamp,open,high,low,close,volume\n";
+    file
+        << "symbol,"
+        << "open_time,"
+        << "close_time,"
+        << "open,"
+        << "high,"
+        << "low,"
+        << "close,"
+        << "volume,"
+        << "quote_volume,"
+        << "trade_count,"
+        << "taker_buy_base_volume,"
+        << "taker_buy_quote_volume\n";
 }
 
 bool CSVWriter::write(
     const std::filesystem::path& filepath,
-    const std::vector<Candle>& candles,
+    const std::vector<quant::market::Candle>& candles,
     bool overwrite
 ) const
 {
@@ -35,13 +47,19 @@ bool CSVWriter::write(
     for (const auto& candle : candles)
     {
         file
-            << candle.timestamp << ","
+            << candle.symbol << ","
+            << candle.openTime << ","
+            << candle.closeTime << ","
             << candle.open << ","
             << candle.high << ","
             << candle.low << ","
             << candle.close << ","
-            << candle.volume
-            << "\n";
+            << candle.volume << ","
+            << candle.quoteVolume << ","
+            << candle.tradeCount << ","
+            << candle.takerBuyBaseVolume << ","
+            << candle.takerBuyQuoteVolume
+            << '\n';
     }
 
     return true;
