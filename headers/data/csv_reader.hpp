@@ -13,7 +13,9 @@ class CSVReader
 public:
     CSVReader() = default;
 
-    std::vector<quant::market::Candle>
+    std::vector<quant::market::Candle> read(
+        const std::filesystem::path& filepath
+    ) const;
 };
 
-}
+} // namespace quant::data

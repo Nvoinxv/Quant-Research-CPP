@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <string>
 
 namespace quant::data
 {
@@ -16,19 +17,25 @@ CSVReader::read(
     std::ifstream file(filepath);
 
     if (!file.is_open())
+    {
         return candles;
+    }
 
     std::string line;
 
-    // Skip header
+    // Skip CSV header
     std::getline(file, line);
 
     while (std::getline(file, line))
     {
+        if (line.empty())
+        {
+            continue;
+        }
+
         std::stringstream ss(line);
 
         quant::market::Candle candle;
-
         std::string value;
 
         // Symbol
@@ -42,16 +49,19 @@ CSVReader::read(
         std::getline(ss, value, ',');
         candle.closeTime = std::stoll(value);
 
-        // OHLC
+        // Open
         std::getline(ss, value, ',');
         candle.open = std::stod(value);
 
+        // High
         std::getline(ss, value, ',');
         candle.high = std::stod(value);
 
+        // Low
         std::getline(ss, value, ',');
         candle.low = std::stod(value);
 
+        // Close
         std::getline(ss, value, ',');
         candle.close = std::stod(value);
 

@@ -12,7 +12,7 @@ class BinanceLoader
 {
 public:
     BinanceLoader(
-        std::string API_KEY_TESNET_BINANCE_FUTURES,
+        std::string API_KEY_TESTNET_BINANCE_FUTURES,
         std::string SECRET_KEY_TESTNET_BINANCE_FUTURES
     );
 
@@ -34,7 +34,8 @@ private:
     ) const;
 
     std::vector<market::Candle> parseResponse(
-        const std::string& json
+        const std::string& body,
+        const std::string& symbol
     ) const;
 
 private:
@@ -42,4 +43,4 @@ private:
     std::string m_secretKey;
 };
 
-}
+} // namespace quant::loaders
