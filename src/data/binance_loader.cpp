@@ -5,6 +5,7 @@
 
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 using json = nlohmann::json;
 
@@ -21,7 +22,7 @@ size_t writeCallback(
     void* userp
 )
 {
-    auto total = size * nmemb;
+    const auto total = size * nmemb;
 
     static_cast<std::string*>(userp)->append(
         static_cast<char*>(contents),
@@ -31,13 +32,13 @@ size_t writeCallback(
     return total;
 }
 
-}
+} // anonymous namespace
 
 BinanceLoader::BinanceLoader(
-    std::string API_KEY_TESNET_BINANCE_FUTURES,
+    std::string API_KEY_TESTNET_BINANCE_FUTURES,
     std::string SECRET_KEY_TESTNET_BINANCE_FUTURES
 )
-    : m_apiKey(std::move(API_KEY_TESNET_BINANCE_FUTURES)),
+    : m_apiKey(std::move(API_KEY_TESTNET_BINANCE_FUTURES)),
       m_secretKey(std::move(SECRET_KEY_TESTNET_BINANCE_FUTURES))
 {
 }
@@ -49,15 +50,18 @@ BinanceLoader::load(
     int limit
 ) const
 {
-    auto url = buildURL(
+    const auto url = buildURL(
         symbol,
         interval,
         limit
     );
 
-    auto response = performRequest(url);
+    const auto response = performRequest(url);
 
-    return parseResponse(response);
+    return parseResponse(
+        response,
+        symbol
+    );
 }
 
 std::string BinanceLoader::buildURL(
@@ -84,11 +88,19 @@ std::string BinanceLoader::performRequest(
     CURL* curl = curl_easy_init();
 
     if (!curl)
-        throw std::runtime_error("Failed to initialize CURL.");
+    {
+        throw std::runtime_error(
+            "Failed to initialize CURL."
+        );
+    }
 
     std::string response;
 
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(
+        curl,
+        CURLOPT_URL,
+        url.c_str()
+    );
 
     curl_easy_setopt(
         curl,
@@ -118,24 +130,29 @@ std::string BinanceLoader::performRequest(
         );
     }
 
-    auto result = curl_easy_perform(curl);
+    const auto result = curl_easy_perform(curl);
 
     if (headers)
+    {
         curl_slist_free_all(headers);
+    }
 
     curl_easy_cleanup(curl);
 
     if (result != CURLE_OK)
+    {
         throw std::runtime_error(
             curl_easy_strerror(result)
         );
+    }
 
     return response;
 }
 
 std::vector<market::Candle>
 BinanceLoader::parseResponse(
-    const std::string& body
+    const std::string& body,
+    const std::string& symbol
 ) const
 {
     json data = json::parse(body);
@@ -150,32 +167,45 @@ BinanceLoader::parseResponse(
 
         candle.symbol = symbol;
 
-        candle.openTime = row[0].get<std::int64_t>();
+        candle.openTime =
+            row[0].get<std::int64_t>();
 
-        candle.open = std::stod(row[1].get<std::string>());
+        candle.open =
+            std::stod(row[1].get<std::string>());
 
-        candle.high = std::stod(row[2].get<std::string>());
+        candle.high =
+            std::stod(row[2].get<std::string>());
 
-        candle.low = std::stod(row[3].get<std::string>());
+        candle.low =
+            std::stod(row[3].get<std::string>());
 
-        candle.close = std::stod(row[4].get<std::string>());
+        candle.close =
+            std::stod(row[4].get<std::string>());
 
-        candle.volume = std::stod(row[5].get<std::string>());
+        candle.volume =
+            std::stod(row[5].get<std::string>());
 
-        candle.closeTime = row[6].get<std::int64_t>();
+        candle.closeTime =
+            row[6].get<std::int64_t>();
 
-        candle.quoteVolume = std::stod(row[7].get<std::string>());
+        candle.quoteVolume =
+            std::stod(row[7].get<std::string>());
 
-        candle.tradeCount = row[8].get<std::uint64_t>();
+        candle.tradeCount =
+            row[8].get<std::uint64_t>();
 
-        candle.takerBuyBaseVolume = std::stod(row[9].get<std::string>());
+        candle.takerBuyBaseVolume =
+            std::stod(row[9].get<std::string>());
 
-        candle.takerBuyQuoteVolume = std::stod(row[10].get<std::string>());
+        candle.takerBuyQuoteVolume =
+            std::stod(row[10].get<std::string>());
 
-        candles.emplace_back(std::move(candle));
+        candles.emplace_back(
+            std::move(candle)
+        );
     }
 
     return candles;
 }
 
-}
+} // namespace quant::loaders
