@@ -8,13 +8,10 @@
 namespace quant::loaders
 {
 
-class BinanceLoader
+class TokocryptoLoader
 {
 public:
-    BinanceLoader(
-        std::string API_KEY_TESTNET_BINANCE_FUTURES,
-        std::string SECRET_KEY_TESTNET_BINANCE_FUTURES
-    );
+    TokocryptoLoader() = default;
 
     std::vector<market::Candle> load(
         const std::string& symbol,
@@ -37,10 +34,6 @@ private:
         const std::string& body,
         const std::string& symbol
     ) const;
-
-private:
-    std::string m_apiKey;
-    std::string m_secretKey;
 };
 
 } // namespace quant::loaders

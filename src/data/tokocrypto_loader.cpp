@@ -1,4 +1,4 @@
-#include "data/binance_loader.hpp"
+#include "data/tokocrypto_loader.hpp"
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
@@ -34,17 +34,8 @@ size_t writeCallback(
 
 } // anonymous namespace
 
-BinanceLoader::BinanceLoader(
-    std::string API_KEY_TESTNET_BINANCE_FUTURES,
-    std::string SECRET_KEY_TESTNET_BINANCE_FUTURES
-)
-    : m_apiKey(std::move(API_KEY_TESTNET_BINANCE_FUTURES)),
-      m_secretKey(std::move(SECRET_KEY_TESTNET_BINANCE_FUTURES))
-{
-}
-
 std::vector<market::Candle>
-BinanceLoader::load(
+TokocryptoLoader::load(
     const std::string& symbol,
     const std::string& interval,
     int limit
@@ -56,7 +47,9 @@ BinanceLoader::load(
         limit
     );
 
-    const auto response = performRequest(url);
+    const auto response = performRequest(
+        url
+    );
 
     return parseResponse(
         response,
@@ -64,7 +57,8 @@ BinanceLoader::load(
     );
 }
 
-std::string BinanceLoader::buildURL(
+std::string
+TokocryptoLoader::buildURL(
     const std::string& symbol,
     const std::string& interval,
     int limit
@@ -73,7 +67,7 @@ std::string BinanceLoader::buildURL(
     std::stringstream ss;
 
     ss
-        << "https://api.binance.com/api/v3/klines?"
+        << "https://www.tokocrypto.site/api/v3/klines?"
         << "symbol=" << symbol
         << "&interval=" << interval
         << "&limit=" << limit;
@@ -81,7 +75,8 @@ std::string BinanceLoader::buildURL(
     return ss.str();
 }
 
-std::string BinanceLoader::performRequest(
+std::string
+TokocryptoLoader::performRequest(
     const std::string& url
 ) const
 {
@@ -114,28 +109,46 @@ std::string BinanceLoader::performRequest(
         &response
     );
 
-    struct curl_slist* headers = nullptr;
+    curl_easy_setopt(
+        curl,
+        CURLOPT_FOLLOWLOCATION,
+        1L
+    );
 
-    if (!m_apiKey.empty())
-    {
-        headers = curl_slist_append(
-            headers,
-            ("X-MBX-APIKEY: " + m_apiKey).c_str()
-        );
+    curl_easy_setopt(
+        curl,
+        CURLOPT_SSL_VERIFYPEER,
+        1L
+    );
 
-        curl_easy_setopt(
-            curl,
-            CURLOPT_HTTPHEADER,
-            headers
-        );
-    }
+    curl_easy_setopt(
+        curl,
+        CURLOPT_SSL_VERIFYHOST,
+        2L
+    );
 
-    const auto result = curl_easy_perform(curl);
+    curl_easy_setopt(
+        curl,
+        CURLOPT_TIMEOUT,
+        30L
+    );
 
-    if (headers)
-    {
-        curl_slist_free_all(headers);
-    }
+    curl_easy_setopt(
+        curl,
+        CURLOPT_USERAGENT,
+        "QuantResearchPlatform/1.0"
+    );
+
+    const auto result =
+        curl_easy_perform(curl);
+
+    long httpCode = 0;
+
+    curl_easy_getinfo(
+        curl,
+        CURLINFO_RESPONSE_CODE,
+        &httpCode
+    );
 
     curl_easy_cleanup(curl);
 
@@ -146,20 +159,37 @@ std::string BinanceLoader::performRequest(
         );
     }
 
+    if (httpCode != 200)
+    {
+        throw std::runtime_error(
+            "Tokocrypto API returned HTTP " +
+            std::to_string(httpCode)
+        );
+    }
+
     return response;
 }
 
 std::vector<market::Candle>
-BinanceLoader::parseResponse(
+TokocryptoLoader::parseResponse(
     const std::string& body,
     const std::string& symbol
 ) const
 {
     json data = json::parse(body);
 
+    if (!data.is_array())
+    {
+        throw std::runtime_error(
+            "Invalid Tokocrypto response."
+        );
+    }
+
     std::vector<market::Candle> candles;
 
-    candles.reserve(data.size());
+    candles.reserve(
+        data.size()
+    );
 
     for (const auto& row : data)
     {
@@ -171,34 +201,50 @@ BinanceLoader::parseResponse(
             row[0].get<std::int64_t>();
 
         candle.open =
-            std::stod(row[1].get<std::string>());
+            std::stod(
+                row[1].get<std::string>()
+            );
 
         candle.high =
-            std::stod(row[2].get<std::string>());
+            std::stod(
+                row[2].get<std::string>()
+            );
 
         candle.low =
-            std::stod(row[3].get<std::string>());
+            std::stod(
+                row[3].get<std::string>()
+            );
 
         candle.close =
-            std::stod(row[4].get<std::string>());
+            std::stod(
+                row[4].get<std::string>()
+            );
 
         candle.volume =
-            std::stod(row[5].get<std::string>());
+            std::stod(
+                row[5].get<std::string>()
+            );
 
         candle.closeTime =
             row[6].get<std::int64_t>();
 
         candle.quoteVolume =
-            std::stod(row[7].get<std::string>());
+            std::stod(
+                row[7].get<std::string>()
+            );
 
         candle.tradeCount =
             row[8].get<std::uint64_t>();
 
         candle.takerBuyBaseVolume =
-            std::stod(row[9].get<std::string>());
+            std::stod(
+                row[9].get<std::string>()
+            );
 
         candle.takerBuyQuoteVolume =
-            std::stod(row[10].get<std::string>());
+            std::stod(
+                row[10].get<std::string>()
+            );
 
         candles.emplace_back(
             std::move(candle)
