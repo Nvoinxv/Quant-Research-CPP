@@ -13,8 +13,8 @@ int main()
 
         auto candles = loader.load(
             "BTCUSDT",
-            "1m",
-            100
+            "15m",
+            35040
         );
 
         quant::data::CSVWriter writer;
