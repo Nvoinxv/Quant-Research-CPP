@@ -35,7 +35,7 @@ int main()
             << "        TOKOCRYPTO DATA LOADER\n"
             << "=========================================\n"
             << "Symbol           : BTCUSDT\n"
-            << "Interval         : 1m\n"
+            << "Interval         : 15m\n"
             << "Candles Loaded   : "
             << result.size()
             << "\n"
