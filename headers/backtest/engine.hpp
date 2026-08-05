@@ -4,6 +4,8 @@
 #include <vector>
 
 #include "core/candle.hpp"
+#include "backtest/broker.hpp"
+#include "backtest/portofolio.hpp"
 
 namespace quant::backtest
 {
@@ -51,7 +53,9 @@ private:
 
 private:
     std::vector<quant::market::Candle> candles_;
-
+    Portfolio portfolio_;
+    Broker broker_{portfolio_};
+    std::uint64_t next_order_id_{1};
     std::size_t current_index_{0};
 };
 

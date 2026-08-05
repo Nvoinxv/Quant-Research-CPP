@@ -9,7 +9,12 @@ namespace quant::backtest
 Engine::Engine(
     const std::vector<quant::market::Candle>& candles
 )
-    : candles_(candles)
+    :
+    candles_(candles),
+    portfolio_(),
+    broker_(portfolio_),
+    next_order_id_,
+    current_index_
 {
 }
 
@@ -21,9 +26,27 @@ void Engine::setData(
     reset();
 }
 
+Engine::Engine(
+    const std::vector<quant::market::Candle>& candles,
+    double initial_cash
+)
+    :
+    candles_(candles),
+    portfolio_(initial_cash)
+{
+}
+
+const Portfolio&
+Engine::portfolio() const noexcept
+{
+    return portfolio_;
+}
+
 void Engine::reset()
 {
     current_index_ = 0;
+
+    portfolio_.reset();
 }
 
 bool Engine::empty() const noexcept
@@ -80,7 +103,7 @@ void Engine::processCandle(
 )
 {
     /*
-        Workflow Engine
+        Workflow
 
         Candle
             ↓
@@ -93,15 +116,14 @@ void Engine::processCandle(
         Order
             ↓
         Portfolio
-            ↓
-        Equity Curve
 
-        Untuk sementara fungsi ini hanya
-        menjadi placeholder sampai seluruh
-        modul backtest selesai dibuat.
+        Saat ini Strategy dan Broker belum
+        tersedia sehingga Engine hanya
+        memperbarui harga pasar agar equity
+        selalu mengikuti harga candle terakhir.
     */
 
-    (void)candle;
+    portfolio_.updateMarketPrice(
+        candle.close
+    );
 }
-
-} // namespace quant::backtest
