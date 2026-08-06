@@ -1,4 +1,5 @@
 #include "backtest/engine.hpp"
+#include "core/dataset.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -76,7 +77,7 @@ Engine::currentCandle() const
     return candles_.at(current_index_);
 }
 
-void Engine::run()
+void Engine::run(const quant::strategy::Strategy& strategy)
 {
     if (empty())
     {
@@ -87,44 +88,74 @@ void Engine::run()
 
     reset();
 
+    // Create a temporary Dataset for the strategy batch processing
+    quant::core::Dataset dataset;
+    dataset.candles = candles_;
+    
+    // Generate signals efficiently (batch process)
+    auto signals = strategy.generate_signals(dataset);
+    std::size_t signal_idx = 0;
+
     for (current_index_ = 0;
          current_index_ < candles_.size();
          ++current_index_)
     {
-        processCandle(
-            candles_[current_index_]
-        );
+        quant::strategy::Signal current_signal;
+        current_signal.type = quant::strategy::SignalType::HOLD;
+
+        // Advance to current candle's signal if any
+        while (signal_idx < signals.size() && signals[signal_idx].index < current_index_)
+        {
+            ++signal_idx;
+        }
+
+        if (signal_idx < signals.size() && signals[signal_idx].index == current_index_)
+        {
+            current_signal = signals[signal_idx];
+            // Don't auto-increment here in case there are multiple signals per candle, 
+            // though normally it's 1-to-1, the loop advancement will handle it.
+        }
+
+        processCandle(candles_[current_index_], current_signal);
     }
 }
 
 void Engine::processCandle(
-    const quant::market::Candle& candle
+    const quant::market::Candle& candle,
+    const quant::strategy::Signal& signal
 )
 {
-    /*
-        Workflow
+    // 1. Update Market Price so portfolio can calculate Unrealized PnL correctly
+    portfolio_.updateMarketPrice(candle.close);
 
-        Candle
-            ↓
-        Strategy
-            ↓
-        Signal
-            ↓
-        Broker
-            ↓
-        Order
-            ↓
-        Portfolio
+    // 2. Execute Orders based on Strategy Signal
+    if (signal.type != quant::strategy::SignalType::HOLD)
+    {
+        // Fixed quantity of 1.0 for now, as Position Sizing isn't implemented
+        double quantity = 1.0;
+        
+        Side side = (signal.type == quant::strategy::SignalType::BUY) ? Side::Buy : Side::Sell;
+        
+        // 3. Broker Execution
+        auto execution = broker_.executeMarketOrder(side, quantity, candle);
 
-        Saat ini Strategy dan Broker belum
-        tersedia sehingga Engine hanya
-        memperbarui harga pasar agar equity
-        selalu mengikuti harga candle terakhir.
-    */
+        if (execution.success)
+        {
+            // 4. Create Order record
+            Order order;
+            order.id = next_order_id_++;
+            order.side = (side == Side::Buy) ? OrderSide::Buy : OrderSide::Sell;
+            order.type = OrderType::Market;
+            order.status = OrderStatus::Filled;
+            order.price = execution.executedPrice;
+            order.quantity = execution.quantity;
+            order.fee = execution.fee;
+            order.timestamp = candle.closeTime;
 
-    portfolio_.updateMarketPrice(
-        candle.close
-    );
+            // 5. Update Portfolio
+            portfolio_.executeOrder(order);
+        }
+    }
 }
 
 } // namespace quant::backtest

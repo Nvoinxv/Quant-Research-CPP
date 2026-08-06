@@ -6,6 +6,7 @@
 #include "core/candle.hpp"
 #include "backtest/broker.hpp"
 #include "backtest/portofolio.hpp"
+#include "strategy/strategy.hpp"
 
 namespace quant::backtest
 {
@@ -37,7 +38,7 @@ public:
 
     void reset();
 
-    void run();
+    void run(const quant::strategy::Strategy& strategy);
 
     [[nodiscard]]
     bool empty() const noexcept;
@@ -56,7 +57,8 @@ public:
 
 private:
     void processCandle(
-        const quant::market::Candle& candle
+        const quant::market::Candle& candle,
+        const quant::strategy::Signal& signal
     );
 
 private:
