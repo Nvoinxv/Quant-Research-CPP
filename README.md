@@ -145,7 +145,6 @@ The conceptual flow of the framework when running a backtest:
 - [x] **Fix Header Typos**: Resolved typo in `max_drawdown.hpp`.
 - [x] **Add CMakeLists.txt**: CMake build configuration is now available in the repository.
 - [ ] **Missing Headers**: Complete missing `.hpp` interface files for several modules in `src/metrics/`, `src/plot/`, and `src/strategy/` to ensure clean architectural boundaries.
-- [ ] **File Renaming**: Rename `portofolio.cpp` to `portfolio.cpp` and `equity_curver.cpp` to `equity_curve.cpp` to ensure consistent English spelling.
 - [ ] **Unit Testing**: Add comprehensive unit tests (e.g., Catch2 or GoogleTest) to validate indicator math, statistics, and edge cases.
 - [ ] **Sample Data**: Include a small `sample_data/` directory so users can test the project without connecting to the Binance API.
 - [ ] **Documentation**: Document strategy parameters and indicator thresholds directly in the code/wiki.
