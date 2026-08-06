@@ -12,9 +12,7 @@ Engine::Engine(
     :
     candles_(candles),
     portfolio_(),
-    broker_(portfolio_),
-    next_order_id_,
-    current_index_
+    broker_()
 {
 }
 
@@ -32,7 +30,8 @@ Engine::Engine(
 )
     :
     candles_(candles),
-    portfolio_(initial_cash)
+    portfolio_(initial_cash),
+    broker_()
 {
 }
 
@@ -127,3 +126,5 @@ void Engine::processCandle(
         candle.close
     );
 }
+
+} // namespace quant::backtest
