@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <vector>
 
-#include "market/candle.hpp"
+#include "core/candle.hpp"
 
 namespace quant::indicators
 {

@@ -26,6 +26,11 @@ public:
         const std::vector<quant::market::Candle>& candles
     );
 
+    Engine(
+        const std::vector<quant::market::Candle>& candles,
+        double initial_cash
+    );
+
     void setData(
         const std::vector<quant::market::Candle>& candles
     );
@@ -36,6 +41,9 @@ public:
 
     [[nodiscard]]
     bool empty() const noexcept;
+
+    [[nodiscard]]
+    const Portfolio& portfolio() const noexcept;
 
     [[nodiscard]]
     std::size_t size() const noexcept;
@@ -54,7 +62,7 @@ private:
 private:
     std::vector<quant::market::Candle> candles_;
     Portfolio portfolio_;
-    Broker broker_{portfolio_};
+    Broker broker_;
     std::uint64_t next_order_id_{1};
     std::size_t current_index_{0};
 };
