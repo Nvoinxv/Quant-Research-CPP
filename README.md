@@ -1,170 +1,163 @@
 # Quant Research C++
 
-Framework riset kuantitatif berbasis C++ untuk melakukan **backtesting strategi trading**, **evaluasi indikator statistik**, dan **manajemen portofolio** secara terintegrasi. Proyek ini dibangun untuk keperluan eksplorasi dan validasi ide trading sistematis (systematic trading) menggunakan data historis (candle/OHLCV), sebelum ide tersebut diuji lebih lanjut di lingkungan live atau paper trading.
+A C++ based quantitative research framework for backtesting trading strategies, evaluating statistical indicators, and integrated portfolio management. This project is built to explore and validate systematic trading ideas using historical data (Candles/OHLCV) before deploying them in a live or paper trading environment.
 
-> **Status:** Proyek ini masih dalam tahap pengembangan aktif (work in progress). Beberapa modul source (`src/`) belum memiliki header (`headers/`) yang bersesuaian, dan build system formal (CMake/Makefile) belum tersedia di repo. Lihat bagian [Roadmap & Known Issues](#roadmap--known-issues) untuk detail.
+> **Status:** Active development (Work in Progress). The backtesting engine has been recently fully integrated with the strategy execution pipeline.
 
 ---
 
-## Daftar Isi
+## Table of Contents
 
-- [Fitur Utama](#fitur-utama)
-- [Struktur Proyek](#struktur-proyek)
-- [Arsitektur Modul](#arsitektur-modul)
-- [Cara Build & Menjalankan](#cara-build--menjalankan)
-- [Alur Kerja (Workflow)](#alur-kerja-workflow)
+- [Key Features](#key-features)
+- [Project Structure](#project-structure)
+- [Module Architecture](#module-architecture)
+- [Build & Run Instructions](#build--run-instructions)
+- [Workflow](#workflow)
 - [Roadmap & Known Issues](#roadmap--known-issues)
-- [Kontribusi](#kontribusi)
-- [Lisensi](#lisensi)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## Fitur Utama
+## Key Features
 
-- **Backtesting Engine** — simulasi eksekusi order, broker, dan tracking portofolio berbasis data historis.
-- **Indikator Statistik/Quant** — implementasi indikator seperti EWMA, RSI, dan Volatility sebagai basis sinyal strategi.
-- **Strategi Trading Modular** — contoh implementasi strategi (breakout, EMA cross, mean reversion) yang bisa dijadikan template untuk strategi baru.
-- **Metrik Evaluasi Performa** — perhitungan Sharpe Ratio, Max Drawdown, Expectancy, dan metrik risk-adjusted lainnya.
-- **Data Loader Fleksibel** — mendukung data dari CSV maupun Binance API (untuk data crypto OHLCV).
-- **Visualisasi** — modul plotting untuk candlestick chart, equity curve, dan overlay indikator.
+- **Backtesting Engine** — Complete simulation of order execution, broker simulation, and portfolio tracking using historical data.
+- **Statistical/Quant Indicators** — Implementations of core indicators like EWMA, RSI, and Volatility as a basis for trading signals.
+- **Modular Trading Strategies** — Examples of systematic strategies (Breakout, EMA Cross, Mean Reversion) that serve as templates for new ideas.
+- **Performance Evaluation Metrics** — Calculation of Sharpe Ratio, Maximum Drawdown, Expectancy, and other risk-adjusted metrics.
+- **Flexible Data Loader** — Supports reading data from local CSV files and fetching OHLCV data directly from the Binance API.
+- **Visualization** — Plotting modules for candlestick charts, equity curves, and indicator overlays.
 
 ---
 
-## Struktur Proyek
+## Project Structure
 
-```
+```text
 Quant_Research_C++/
-├── headers/                    # Header (.hpp) — kontrak/interface modul
-│   ├── core/                   # Struktur data inti (candle, dataset, timeseries)
-│   ├── data/                   # Interface loader data (CSV, Binance)
-│   └── indicator/               # Interface indikator statistik
-├── src/                        # Implementasi (.cpp)
-│   ├── backtest/                # Engine simulasi, broker, order, portofolio
-│   ├── data/                    # Implementasi loader data
-│   ├── indicator/                # Implementasi indikator
-│   ├── metrics/                  # Perhitungan metrik performa
-│   ├── plot/                     # Visualisasi hasil backtest
-│   └── strategy/                  # Implementasi strategi trading
-├── main.cpp                    # Entry point aplikasi
-├── quant_research               # (belum dikonfirmasi — kemungkinan binary/output build)
+├── headers/                    # Header files (.hpp) — module interfaces and contracts
+│   ├── core/                   # Core data structures (candle, dataset, timeseries)
+│   ├── data/                   # Data loader interfaces (CSV, Binance)
+│   └── indicator/              # Statistical indicator interfaces
+├── src/                        # Implementation files (.cpp)
+│   ├── backtest/               # Simulation engine, broker, orders, and portfolio
+│   ├── data/                   # Data loader implementations
+│   ├── indicator/              # Indicator implementations
+│   ├── metrics/                # Performance metrics calculations
+│   ├── plot/                   # Backtest result visualizations
+│   └── strategy/               # Trading strategy implementations
+├── main.cpp                    # Application entry point
+├── CMakeLists.txt              # CMake build configuration
+├── quant_research              # Build output binary
 └── README.md
 ```
 
 ---
 
-## Arsitektur Modul
+## Module Architecture
 
 ### `headers/core/`
-Struktur data fundamental yang dipakai di seluruh sistem:
-- `candle.hpp` — representasi satu candle/OHLCV.
-- `dataset.hpp` — kumpulan data (kemungkinan kumpulan candle atau time series multi-asset).
-- `timeseries.hpp` — struktur data time series generik.
+Fundamental data structures used throughout the system:
+- `candle.hpp` — Representation of a single Candle/OHLCV data point.
+- `dataset.hpp` — Collection of market data (time series).
+- `timeseries.hpp` — Generic time series data structure.
 
 ### `headers/data/` & `src/data/`
-Layer akuisisi data:
-- `csv_loader.hpp/.cpp` & `csv_reader.hpp/.cpp` — membaca data historis dari file CSV.
-- `binance_loader.hpp/.cpp` — mengambil data OHLCV langsung dari Binance API.
+Data acquisition layer:
+- `csv_loader.hpp/.cpp` & `csv_reader.hpp/.cpp` — Read historical data from CSV files.
+- `binance_loader.hpp/.cpp` — Fetch OHLCV data directly from the Binance API.
 
 ### `headers/indicator/` & `src/indicator/`
-Indikator statistik sebagai basis sinyal:
+Statistical indicators used for generating signals:
 - `ewma.hpp/.cpp` — Exponentially Weighted Moving Average.
 - `rsi.hpp/.cpp` — Relative Strength Index.
-- `volatility.hpp/.cpp` — pengukuran volatilitas (kemungkinan realized/historical volatility).
+- `volatility.hpp/.cpp` — Volatility measurements (historical/realized volatility).
+- `choppiness_index.hpp/.cpp` — Market trend and choppiness measurement.
 
 ### `src/backtest/`
-Inti dari mesin backtesting:
-- `engine.cpp` — orkestrasi utama simulasi (loop candle → sinyal → eksekusi → update portofolio).
-- `broker.cpp` — simulasi eksekusi order (slippage, fee, dll — perlu dikonfirmasi).
-- `order.cpp` — representasi order (market/limit, buy/sell).
-- `portofolio.cpp` — tracking posisi, cash, dan equity.
-
-> ⚠️ Catatan: nama file `portofolio.cpp` sebaiknya diganti ke `portfolio.cpp` (ejaan baku Bahasa Inggris) agar konsisten dan tidak membingungkan kontributor lain atau tooling (grep/IDE search).
+The core of the backtesting engine:
+- `engine.cpp` — Main simulation orchestrator. Handles the complete flow: Candle → Strategy → Signal → Broker → Order → Portfolio.
+- `broker.cpp` — Order execution simulation (handles slippage, fees).
+- `order.cpp` — Order representation (Market/Limit, Buy/Sell).
+- `portofolio.cpp` — Tracking positions, cash balances, and equity.
 
 ### `src/metrics/`
-Evaluasi performa strategi:
+Strategy performance evaluation:
 - `sharpe.cpp` — Sharpe Ratio.
-- `max_drawdown.cpp` — Maximum Drawdown.
-- `expectancy.cpp` — expectancy per trade.
-- `sorting.cpp` — **diasumsikan** ini adalah **Sortino Ratio** (metrik risk-adjusted return berbasis downside deviation), bukan algoritma sorting. Mohon dikoreksi/di-rename ke `sortino.cpp` jika asumsi ini benar, untuk menghindari kebingungan.
+- `max_drawdown.cpp` — Maximum Drawdown calculation.
+- `expectancy.cpp` — Trade expectancy per execution.
+- `sortino_ratio.hpp/.cpp` — Risk-adjusted return metric based on downside deviation.
 
 ### `src/plot/`
-Visualisasi hasil:
-- `candlestick.cpp` — chart candlestick.
-- `equity_curver.cpp` — **kemungkinan typo** dari `equity_curve.cpp` (kurva ekuitas portofolio dari waktu ke waktu). Disarankan rename untuk konsistensi.
-- `indicator_plot.cpp` — overlay indikator pada chart.
+Result visualization:
+- `candlestick.cpp` — Candlestick charting.
+- `equity_curver.cpp` — Equity curve visualization over time.
+- `indicator_plot.cpp` — Overlaying indicators on price charts.
 
 ### `src/strategy/`
-Contoh strategi trading yang siap pakai atau jadi template:
-- `breakout.cpp` — strategi breakout.
-- `ema_cross.cpp` — strategi persilangan EMA (golden/death cross).
-- `mean_reversion.cpp` — strategi mean reversion.
+Ready-to-use trading strategies acting as templates:
+- `breakout.cpp` — Breakout strategy.
+- `ema_cross.cpp` — Exponential Moving Average crossover strategy (Golden/Death cross).
+- `mean_reversion.cpp` — Mean reversion trading strategy.
 
 ---
 
-## Cara Build & Menjalankan
+## Build & Run Instructions
 
-> Belum ada `CMakeLists.txt` atau `Makefile` di repo saat ini, sehingga instruksi di bawah bersifat **contoh umum**, bukan perintah yang sudah teruji di proyek ini. Sesuaikan dengan compiler flags dan dependency aktual (misalnya library HTTP untuk Binance loader, atau library plotting yang dipakai).
+The project uses CMake for its build system.
 
-### Prasyarat
-- Compiler C++ dengan dukungan minimal C++17 (`g++` atau `clang++`).
-- (Opsional, jika `binance_loader` menggunakan HTTP request) library seperti `libcurl`.
-- (Opsional, jika `plot/` merender ke file/window) library plotting yang relevan (mis. matplotlib-cpp, atau export ke format lain).
+### Prerequisites
+- A C++ compiler with C++17 support (e.g., `g++`, `clang++`, or MSVC).
+- CMake installed.
+- (Optional) `libcurl` for the Binance API loader.
 
-### Build manual (contoh, perlu disesuaikan)
+### Building the Project
 ```bash
-g++ -std=c++17 -Iheaders \
-    main.cpp \
-    src/backtest/*.cpp \
-    src/data/*.cpp \
-    src/indicator/*.cpp \
-    src/metrics/*.cpp \
-    src/plot/*.cpp \
-    src/strategy/*.cpp \
-    -o quant_research
+mkdir build
+cd build
+cmake ..
+cmake --build .
 ```
 
-### Menjalankan
+### Running the Backtester
 ```bash
 ./quant_research
 ```
-
-**Rekomendasi:** tambahkan `CMakeLists.txt` agar proses build reproducible dan mudah diintegrasikan ke CI, terutama karena jumlah source file akan terus bertambah seiring strategi/indikator baru ditambahkan.
+*(Note: On Windows, the executable may be named `quant_research.exe`)*
 
 ---
 
-## Alur Kerja (Workflow)
+## Workflow
 
-Alur konseptual penggunaan framework ini (berdasarkan struktur modul yang ada):
+The conceptual flow of the framework when running a backtest:
 
-1. **Load data** — ambil data historis via `csv_loader`/`csv_reader` atau `binance_loader`.
-2. **Hitung indikator** — terapkan `ewma`, `rsi`, `volatility`, atau indikator custom pada dataset.
-3. **Jalankan strategi** — logic strategi (`breakout`, `ema_cross`, `mean_reversion`) menghasilkan sinyal beli/jual berdasarkan indikator.
-4. **Backtest** — `engine` mensimulasikan eksekusi sinyal melalui `broker` dan `order`, lalu memperbarui `portofolio`.
-5. **Evaluasi performa** — hitung `sharpe`, `max_drawdown`, `expectancy`, dan metrik risk-adjusted lainnya.
-6. **Visualisasi** — tampilkan hasil melalui `candlestick`, `equity_curver` (equity curve), dan `indicator_plot`.
+1. **Load Data** — Fetch historical data via `csv_reader` or `binance_loader` and build a `Dataset`.
+2. **Calculate Indicators** — Apply `EWMA`, `RSI`, `Volatility`, etc., onto the dataset.
+3. **Strategy Execution** — The Strategy logic (e.g., `breakout`, `ema_cross`) analyzes the dataset and generates a series of buy/sell `Signal`s based on indicators.
+4. **Backtest Engine** — The `Engine` iterates through the dataset candle by candle, matching signals, routing them to the `Broker` for execution, and recording `Order`s into the `Portfolio`.
+5. **Evaluate Performance** — Calculate `Sharpe`, `Max Drawdown`, and other risk-adjusted metrics based on the final equity curve.
+6. **Visualization** — Display results using candlestick charts, equity curves, and indicator plots.
 
 ---
 
 ## Roadmap & Known Issues
 
-Daftar ini ditulis secara jujur agar kontributor/pembaca tahu status sebenarnya dari proyek:
-
-- [ ] Tambahkan `CMakeLists.txt`/`Makefile` untuk build yang reproducible.
-- [ ] Lengkapi header (`.hpp`) untuk modul `backtest/`, `metrics/`, `plot/`, dan `strategy/` yang saat ini hanya punya `.cpp` tanpa interface eksplisit.
-- [ ] Perbaiki penamaan file: `portofolio.cpp` → `portfolio.cpp`, `equity_curver.cpp` → `equity_curve.cpp`, konfirmasi `sorting.cpp` → `sortino.cpp` (jika memang dimaksudkan sebagai Sortino Ratio).
-- [ ] Klarifikasi fungsi file `quant_research` di root (apakah ini binary hasil build yang ter-commit tanpa sengaja?).
-- [ ] Tambahkan unit test (mis. dengan Catch2/GoogleTest) untuk indikator dan metrics, mengingat perhitungan statistik rawan off-by-one error dan edge case (data kosong, NaN, dsb).
-- [ ] Tambahkan contoh dataset kecil (`sample_data/`) agar orang lain bisa langsung mencoba tanpa perlu koneksi ke Binance API.
-- [ ] Dokumentasikan parameter tiap indikator dan strategi (periode EWMA, threshold RSI, dll).
-
----
-
-## Kontribusi
-
-Kontribusi, saran, dan laporan bug sangat diterima. Silakan buka issue atau pull request. Untuk perubahan besar pada arsitektur (misalnya penambahan header baru), mohon diskusikan dulu melalui issue agar konsisten dengan struktur modul yang sudah ada.
+- [x] **Integrate Backtest Engine Pipeline**: The `Engine` is now fully wired up with `Strategy`, `Broker`, `Order`, and `Portfolio`.
+- [x] **Fix Header Typos**: Resolved typo in `max_drawdown.hpp`.
+- [x] **Add CMakeLists.txt**: CMake build configuration is now available in the repository.
+- [ ] **Missing Headers**: Complete missing `.hpp` interface files for several modules in `src/metrics/`, `src/plot/`, and `src/strategy/` to ensure clean architectural boundaries.
+- [ ] **File Renaming**: Rename `portofolio.cpp` to `portfolio.cpp` and `equity_curver.cpp` to `equity_curve.cpp` to ensure consistent English spelling.
+- [ ] **Unit Testing**: Add comprehensive unit tests (e.g., Catch2 or GoogleTest) to validate indicator math, statistics, and edge cases.
+- [ ] **Sample Data**: Include a small `sample_data/` directory so users can test the project without connecting to the Binance API.
+- [ ] **Documentation**: Document strategy parameters and indicator thresholds directly in the code/wiki.
 
 ---
 
-## Lisensi
+## Contributing
 
-*(Belum ditentukan — tambahkan file `LICENSE` sesuai preferensi, misalnya MIT, Apache 2.0, atau proprietary jika ini riset privat.)*
+Contributions, feature requests, and bug reports are highly welcome. Please open an issue or submit a pull request. For major architectural changes, please open an issue first to discuss your proposed changes to maintain structural consistency.
+
+---
+
+## License
+
+*(License yet to be determined — Please add a `LICENSE` file according to the project's preference, such as MIT, Apache 2.0, or Proprietary).*
