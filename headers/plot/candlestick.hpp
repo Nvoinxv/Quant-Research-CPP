@@ -20,32 +20,49 @@ class CandlestickPlotter
 public:
     struct Config
     {
-        std::size_t width = 1200;
-        std::size_t height = 800;
-        std::string title = "Candlestick Chart";
+        std::size_t width;
+        std::size_t height;
+        std::string title;
 
-        // Colors (hex format)
-        std::string upColor = "#26a69a";      // Bullish
-        std::string downColor = "#ef5350";    // Bearish
-        std::string wickColor = "#374151";
-        std::string backgroundColor = "#ffffff";
-        std::string gridColor = "#e5e7eb";
-        std::string textColor = "#374151";
-        std::string axisColor = "#9ca3af";
+        std::string upColor;
+        std::string downColor;
+        std::string wickColor;
+        std::string backgroundColor;
+        std::string gridColor;
+        std::string textColor;
+        std::string axisColor;
 
-        // Layout
-        std::size_t paddingLeft = 80;
-        std::size_t paddingRight = 40;
-        std::size_t paddingTop = 60;
-        std::size_t paddingBottom = 100;
+        std::size_t paddingLeft;
+        std::size_t paddingRight;
+        std::size_t paddingTop;
+        std::size_t paddingBottom;
 
-        // Volume panel
-        bool showVolume = true;
-        double volumeHeightRatio = 0.20;      // 20% of plot area for volume
+        bool showVolume;
+        double volumeHeightRatio;
 
-        // Labels
-        std::size_t maxPriceLabels = 8;
-        std::size_t maxTimeLabels = 6;
+        std::size_t maxPriceLabels;
+        std::size_t maxTimeLabels;
+
+        Config()
+            : width(1200)
+            , height(800)
+            , title("Candlestick Chart")
+            , upColor("#26a69a")
+            , downColor("#ef5350")
+            , wickColor("#374151")
+            , backgroundColor("#ffffff")
+            , gridColor("#e5e7eb")
+            , textColor("#374151")
+            , axisColor("#9ca3af")
+            , paddingLeft(80)
+            , paddingRight(40)
+            , paddingTop(60)
+            , paddingBottom(100)
+            , showVolume(true)
+            , volumeHeightRatio(0.20)
+            , maxPriceLabels(8)
+            , maxTimeLabels(6)
+        {}
     };
 
     explicit CandlestickPlotter(const Config& config = Config{});

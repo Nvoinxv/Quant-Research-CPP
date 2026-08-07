@@ -13,6 +13,10 @@
 #include "strategy/ema_cross.hpp"
 #include "strategy/mean_reversion.hpp"
 
+#include "plot/candlestick.hpp"
+#include "plot/equity_curver.hpp"
+#include "plot/indicator_plot.hpp"
+
 #include <algorithm>
 #include <exception>
 #include <iomanip>
@@ -67,13 +71,13 @@ class BreakoutAdapter : public quant::strategy::Strategy
 public:
     explicit BreakoutAdapter(const quant::strategy::BreakoutStrategy& impl) 
         : impl_(impl) {}
-    
+
     std::vector<quant::strategy::Signal> generate_signals(
         const quant::core::Dataset& dataset) const override 
     {
         return impl_.generate_signals(dataset);
     }
-    
+
     quant::strategy::Signal generate_signal_at(
         const quant::core::Dataset& dataset, 
         std::size_t index) const override 
@@ -88,13 +92,13 @@ class EmaCrossAdapter : public quant::strategy::Strategy
 public:
     explicit EmaCrossAdapter(const quant::strategy::EmaCrossStrategy& impl) 
         : impl_(impl) {}
-    
+
     std::vector<quant::strategy::Signal> generate_signals(
         const quant::core::Dataset& dataset) const override 
     {
         return impl_.generate_signals(dataset);
     }
-    
+
     quant::strategy::Signal generate_signal_at(
         const quant::core::Dataset& dataset, 
         std::size_t index) const override 
@@ -109,10 +113,10 @@ public:
 static double calculateMaxDrawdown(const std::vector<double>& equity)
 {
     if (equity.size() < 2) return 0.0;
-    
+
     double peak = equity[0];
     double max_dd = 0.0;
-    
+
     for (const double& val : equity)
     {
         if (val > peak) peak = val;
@@ -131,9 +135,9 @@ static void printBacktestResults(
     double final_equity = portfolio.equity();
     double total_return = (final_equity - initial_cash) / initial_cash * 100.0;
     double max_dd = calculateMaxDrawdown(equity);
-    
+
     printHeader("BACKTEST RESULT: " + name, '-');
-    
+
     std::cout << "  " << std::left << std::setw(28) << "Initial Cash"
               << ": $" << fmt(initial_cash) << '\n';
     std::cout << "  " << std::left << std::setw(28) << "Final Equity"
@@ -146,8 +150,7 @@ static void printBacktestResults(
               << ": " << fmt(portfolio.position()) << " BTC\n";
     std::cout << "  " << std::left << std::setw(28) << "Final Cash"
               << ": $" << fmt(portfolio.cash()) << '\n';
-    
-    // Equity curve snapshot (last 10)
+
     if (!equity.empty())
     {
         std::cout << '\n';
@@ -161,6 +164,52 @@ static void printBacktestResults(
         std::cout << '\n';
     }
     std::cout << '\n';
+}
+
+// ═════════════════════════════════════════════════════════════
+// PLOT HELPERS
+// ═════════════════════════════════════════════════════════════
+static void renderEquityPlot(
+    const quant::core::Dataset& dataset,
+    const quant::backtest::Portfolio& portfolio,
+    const std::string& filename,
+    const std::string& title)
+{
+    const auto& equity = portfolio.equityCurve();
+    if (equity.empty())
+    {
+        std::cout << "  [SKIP] Equity curve empty for: " << title << '\n';
+        return;
+    }
+
+    quant::plot::EquityCurvePlotter::Config cfg;
+    cfg.title = title;
+    cfg.showDrawdownPanel = true;
+    cfg.showStatsBox = true;
+
+    quant::plot::EquityCurvePlotter plotter(cfg);
+
+    if (equity.size() == dataset.size())
+    {
+        plotter.loadFromDataset(dataset, equity);
+    }
+    else
+    {
+        // Fallback: build EquityPoint vector manually
+        std::vector<quant::plot::EquityPoint> points;
+        points.reserve(equity.size());
+        for (std::size_t i = 0; i < equity.size(); ++i)
+        {
+            std::int64_t ts = (i < dataset.size()) ? dataset.candles[i].openTime : 0;
+            points.push_back({ts, equity[i]});
+        }
+        plotter.loadEquityData(points);
+    }
+
+    if (plotter.renderToFile(filename))
+        std::cout << "  [PLOT] Equity curve saved to " << filename << '\n';
+    else
+        std::cout << "  [ERR]  Failed to save " << filename << '\n';
 }
 
 } // anonymous namespace
@@ -192,13 +241,11 @@ int main()
             throw std::runtime_error("CSV file is empty or failed to load.");
         }
 
-        // Build Dataset (untuk strategi manual & engine)
         quant::core::Dataset dataset;
         dataset.symbol   = "BTCUSDT";
         dataset.interval = "5m";
-        dataset.candles  = candles; // copy untuk dataset
+        dataset.candles  = candles;
 
-        // Extract closes untuk indikator
         std::vector<double> closePrices;
         closePrices.reserve(dataset.size());
         for (const auto& c : dataset.candles)
@@ -224,7 +271,6 @@ int main()
         printSeparator('=');
         std::cout << '\n';
 
-        // Dataset Info
         printHeader("DATASET INFORMATION");
         std::cout << "  " << std::left << std::setw(28) << "CSV Source"
                   << ": " << csvPath << '\n';
@@ -239,7 +285,6 @@ int main()
                   << " - " << fmt4(*std::max_element(closePrices.begin(), closePrices.end())) << '\n';
         std::cout << '\n';
 
-        // Latest Values
         printHeader("LATEST INDICATOR VALUES");
         std::cout << "  " << std::left << std::setw(28) << "EWMA (" + std::to_string(ewmaPeriod) + ")"
                   << ": " << fmt4(lastEWMA) << '\n';
@@ -249,7 +294,6 @@ int main()
                   << ": " << fmt(lastCHOP) << '\n';
         std::cout << '\n';
 
-        // Market Interpretation
         printHeader("MARKET INTERPRETATION");
         std::string rsiSignal = (lastRSI > 70.0) ? "OVERBOUGHT (Bearish)"
                               : (lastRSI < 30.0) ? "OVERSOLD (Bullish)"
@@ -263,7 +307,6 @@ int main()
                               (lastCHOP < 38.2) ? "Trending" : "Transition") << '\n';
         std::cout << '\n';
 
-        // Recent History
         printHeader("RECENT HISTORY (Last 10 Candles)");
         printSeparator('-');
         std::cout << "  " << std::left
@@ -312,7 +355,7 @@ int main()
         // ── Mean Reversion ──
         quant::strategy::MeanReversionStrategy meanRev(9, 25.0, 75.0, 14, 50.0, 0, false);
         quant::backtest::Engine engineMr(candles, initialCash);
-        engineMr.run(meanRev); // Langsung, karena udah inherit Strategy
+        engineMr.run(meanRev);
         printBacktestResults("MEAN REVERSION (RSI 9 + CHOP)", engineMr.portfolio(), initialCash);
 
         // =========================================================
@@ -325,7 +368,7 @@ int main()
                   << std::setw(16) << "Max DD %"
                   << '\n';
         printSeparator('-');
-        
+
         auto printRow = [&](const std::string& name, const quant::backtest::Portfolio& p) {
             double ret = (p.equity() - initialCash) / initialCash * 100.0;
             double dd = calculateMaxDrawdown(p.equityCurve()) * 100.0;
@@ -335,13 +378,102 @@ int main()
                       << std::setw(16) << fmt(dd)
                       << '\n';
         };
-        
+
         printRow("Breakout", engineBreakout.portfolio());
         printRow("EMA Cross", engineEma.portfolio());
         printRow("Mean Reversion", engineMr.portfolio());
-        
+
         printSeparator('=');
         std::cout << "           BACKTEST COMPLETED SUCCESSFULLY\n";
+        printSeparator('=');
+        std::cout << '\n';
+
+        // =========================================================
+        // 7. VISUALIZATION — CANDLESTICK CHART
+        // =========================================================
+        printHeader("VISUALIZATION: CANDLESTICK CHART");
+        {
+            quant::plot::CandlestickPlotter::Config cfg;
+            cfg.title = dataset.symbol + " " + dataset.interval;
+            quant::plot::CandlestickPlotter candlePlotter(cfg);
+            candlePlotter.loadDataset(dataset);
+
+            if (candlePlotter.renderToFile("output_candlestick.svg"))
+                std::cout << "  [PLOT] Candlestick chart saved to output_candlestick.svg\n";
+            else
+                std::cout << "  [ERR]  Failed to save candlestick chart\n";
+        }
+        std::cout << '\n';
+
+        // =========================================================
+        // 8. VISUALIZATION — EQUITY CURVES
+        // =========================================================
+        printHeader("VISUALIZATION: EQUITY CURVES");
+        renderEquityPlot(dataset, engineBreakout.portfolio(),
+                         "output_equity_breakout.svg", "Breakout Equity Curve");
+        renderEquityPlot(dataset, engineEma.portfolio(),
+                         "output_equity_emacross.svg", "EMA Cross Equity Curve");
+        renderEquityPlot(dataset, engineMr.portfolio(),
+                         "output_equity_meanrev.svg", "Mean Reversion Equity Curve");
+        std::cout << '\n';
+
+        // =========================================================
+        // 9. VISUALIZATION — INDICATOR OVERLAY
+        // =========================================================
+        printHeader("VISUALIZATION: INDICATOR OVERLAY");
+        {
+            quant::plot::IndicatorPlotter indPlotter;
+            indPlotter.loadDataset(dataset);
+
+            // EWMA overlay line di main chart
+            if (!ewmaValues.empty())
+            {
+                quant::plot::IndicatorSeries ewmaSeries;
+                ewmaSeries.name      = "EWMA(" + std::to_string(ewmaPeriod) + ")";
+                ewmaSeries.values    = ewmaValues;
+                ewmaSeries.type      = quant::plot::IndicatorType::Line;
+                ewmaSeries.panel     = quant::plot::IndicatorPanel::Main;
+                ewmaSeries.color     = "#f59e0b";  // amber
+                ewmaSeries.lineWidth = 2.0;
+                indPlotter.addIndicator(ewmaSeries);
+            }
+
+            // RSI oscillator di sub-panel 1
+            if (!rsiValues.empty())
+            {
+                quant::plot::IndicatorSeries rsiSeries;
+                rsiSeries.name    = "RSI(" + std::to_string(rsiPeriod) + ")";
+                rsiSeries.values  = rsiValues;
+                rsiSeries.type    = quant::plot::IndicatorType::Oscillator;
+                rsiSeries.panel   = quant::plot::IndicatorPanel::Sub1;
+                rsiSeries.color   = "#8b5cf6";  // violet
+                rsiSeries.oscMin  = 0.0;
+                rsiSeries.oscMax  = 100.0;
+                indPlotter.addIndicator(rsiSeries);
+            }
+
+            // Choppiness Index line di sub-panel 2
+            if (!chopValues.empty())
+            {
+                quant::plot::IndicatorSeries chopSeries;
+                chopSeries.name      = "CHOP(" + std::to_string(chopPeriod) + ")";
+                chopSeries.values    = chopValues;
+                chopSeries.type      = quant::plot::IndicatorType::Line;
+                chopSeries.panel     = quant::plot::IndicatorPanel::Sub2;
+                chopSeries.color     = "#10b981";  // emerald
+                chopSeries.lineWidth = 1.5;
+                indPlotter.addIndicator(chopSeries);
+            }
+
+            if (indPlotter.renderToFile("output_indicators.svg"))
+                std::cout << "  [PLOT] Indicator overlay saved to output_indicators.svg\n";
+            else
+                std::cout << "  [ERR]  Failed to save indicator overlay\n";
+        }
+        std::cout << '\n';
+
+        printSeparator('=');
+        std::cout << "           ALL VISUALIZATIONS EXPORTED\n";
         printSeparator('=');
 
         return EXIT_SUCCESS;

@@ -70,43 +70,65 @@ class IndicatorPlotter
 public:
     struct Config
     {
-        std::size_t width = 1400;
-        std::size_t height = 900;
-        std::string title = "Price & Indicators";
+        std::size_t width;
+        std::size_t height;
+        std::string title;
 
-        // Colors
-        std::string upColor = "#26a69a";
-        std::string downColor = "#ef5350";
-        std::string wickColor = "#374151";
-        std::string backgroundColor = "#ffffff";
-        std::string gridColor = "#e5e7eb";
-        std::string textColor = "#374151";
-        std::string axisColor = "#9ca3af";
-        std::string legendBg = "#f9fafb";
-        std::string crosshairColor = "#9ca3af";
+        std::string upColor;
+        std::string downColor;
+        std::string wickColor;
+        std::string backgroundColor;
+        std::string gridColor;
+        std::string textColor;
+        std::string axisColor;
+        std::string legendBg;
+        std::string crosshairColor;
 
-        // Layout
-        std::size_t paddingLeft = 80;
-        std::size_t paddingRight = 50;
-        std::size_t paddingTop = 60;
-        std::size_t paddingBottom = 100;
+        std::size_t paddingLeft;
+        std::size_t paddingRight;
+        std::size_t paddingTop;
+        std::size_t paddingBottom;
 
-        // Sub-panel heights (ratios of remaining height after main chart)
-        double mainPanelRatio = 0.55;
-        double subPanel1Ratio = 0.22;
-        double subPanel2Ratio = 0.23;
+        double mainPanelRatio;
+        double subPanel1Ratio;
+        double subPanel2Ratio;
 
-        // Volume
-        bool showVolume = true;
-        double volumeHeightRatio = 0.12; // Within main panel
+        bool showVolume;
+        double volumeHeightRatio;
 
-        // Legend
-        bool showLegend = true;
-        std::size_t legendItemWidth = 140;
+        bool showLegend;
+        std::size_t legendItemWidth;
 
-        // Labels
-        std::size_t maxPriceLabels = 8;
-        std::size_t maxTimeLabels = 6;
+        std::size_t maxPriceLabels;
+        std::size_t maxTimeLabels;
+
+        Config()
+            : width(1400)
+            , height(900)
+            , title("Price & Indicators")
+            , upColor("#26a69a")
+            , downColor("#ef5350")
+            , wickColor("#374151")
+            , backgroundColor("#ffffff")
+            , gridColor("#e5e7eb")
+            , textColor("#374151")
+            , axisColor("#9ca3af")
+            , legendBg("#f9fafb")
+            , crosshairColor("#9ca3af")
+            , paddingLeft(80)
+            , paddingRight(50)
+            , paddingTop(60)
+            , paddingBottom(100)
+            , mainPanelRatio(0.55)
+            , subPanel1Ratio(0.22)
+            , subPanel2Ratio(0.23)
+            , showVolume(true)
+            , volumeHeightRatio(0.12)
+            , showLegend(true)
+            , legendItemWidth(140)
+            , maxPriceLabels(8)
+            , maxTimeLabels(6)
+        {}
     };
 
     explicit IndicatorPlotter(const Config& config = Config{});
