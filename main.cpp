@@ -17,6 +17,11 @@
 #include "plot/equity_curver.hpp"
 #include "plot/indicator_plot.hpp"
 
+#include "metrics/expectancy.hpp"
+#include "metrics/max_drawdown.hpp"
+#include "metrics/sharpe.hpp"
+#include "metrics/sortino_ratio.hpp"
+
 #include <algorithm>
 #include <exception>
 #include <filesystem>
