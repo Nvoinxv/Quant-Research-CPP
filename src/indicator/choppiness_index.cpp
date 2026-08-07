@@ -1,4 +1,4 @@
-#include "indicators/choppiness_index.hpp"
+#include "choppiness_index.hpp"
 
 #include <algorithm>
 #include <cmath>

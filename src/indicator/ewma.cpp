@@ -1,4 +1,4 @@
-#include "indicators/ewma.hpp"
+#include "ewma.hpp"
 
 #include <stdexcept>
 #include <limits>
