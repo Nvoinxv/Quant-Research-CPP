@@ -2,6 +2,9 @@
 #include "core/candle.hpp"
 #include "core/dataset.hpp"
 
+#include "backtest/engine.hpp"
+#include "backtest/portofolio.hpp"
+
 #include "indicator/ewma.hpp"
 #include "indicator/rsi_wilder.hpp"
 #include "indicator/choppiness_index.hpp"
@@ -18,9 +21,9 @@
 #include <string>
 #include <vector>
 
-// ─────────────────────────────────────────────────────────────
-// Helper: Format angka
-// ─────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═════════════════════════════════════════════════════════════
 static std::string fmt(double value, int prec = 2)
 {
     std::ostringstream oss;
@@ -30,9 +33,6 @@ static std::string fmt(double value, int prec = 2)
 
 static std::string fmt4(double value) { return fmt(value, 4); }
 
-// ─────────────────────────────────────────────────────────────
-// Helper: Cetak garis pemisah & header
-// ─────────────────────────────────────────────────────────────
 static void printSeparator(char fill = '-', int width = 80)
 {
     std::cout << std::string(width, fill) << '\n';
@@ -45,9 +45,6 @@ static void printHeader(const std::string& title, char border = '=')
     printSeparator(border);
 }
 
-// ─────────────────────────────────────────────────────────────
-// Helper: Konversi sinyal ke string
-// ─────────────────────────────────────────────────────────────
 static std::string signalTypeToString(quant::strategy::SignalType type)
 {
     switch (type)
@@ -58,49 +55,119 @@ static std::string signalTypeToString(quant::strategy::SignalType type)
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Helper: Cetak tabel sinyal strategi
-// ─────────────────────────────────────────────────────────────
-static void printSignals(const std::string& strategyName,
-                         const std::vector<quant::strategy::Signal>& signals,
-                         std::size_t maxRows = 15)
+// ═════════════════════════════════════════════════════════════
+// ADAPTER: Wrapper biar Breakout & EMA Cross bisa masuk Engine
+// (Sementara sampai lu update header mereka jadi inherit Strategy)
+// ═════════════════════════════════════════════════════════════
+namespace {
+
+class BreakoutAdapter : public quant::strategy::Strategy
 {
-    printHeader("STRATEGY: " + strategyName, '-');
-
-    if (signals.empty())
+    const quant::strategy::BreakoutStrategy& impl_;
+public:
+    explicit BreakoutAdapter(const quant::strategy::BreakoutStrategy& impl) 
+        : impl_(impl) {}
+    
+    std::vector<quant::strategy::Signal> generate_signals(
+        const quant::core::Dataset& dataset) const override 
     {
-        std::cout << "  [No signals generated — data too short or no trigger]\n\n";
-        return;
+        return impl_.generate_signals(dataset);
     }
-
-    std::cout << "  Total Signals: " << signals.size() << '\n';
-    printSeparator('-');
-    std::cout << "  " << std::left
-              << std::setw(8)  << "Bar"
-              << std::setw(12) << "Type"
-              << std::setw(16) << "Price"
-              << std::setw(14) << "Confidence"
-              << "Reason\n";
-    printSeparator('-');
-
-    std::size_t start = (signals.size() > maxRows) ? signals.size() - maxRows : 0;
-    for (std::size_t i = start; i < signals.size(); ++i)
+    
+    quant::strategy::Signal generate_signal_at(
+        const quant::core::Dataset& dataset, 
+        std::size_t index) const override 
     {
-        const auto& s = signals[i];
-        std::cout << "  " << std::left
-                  << std::setw(8)  << (s.index + 1)
-                  << std::setw(12) << signalTypeToString(s.type)
-                  << std::setw(16) << fmt4(s.price)
-                  << std::setw(14) << fmt(s.confidence)
-                  << s.reason << '\n';
+        return impl_.generate_signal_at(dataset, index);
     }
-    printSeparator('-');
+};
+
+class EmaCrossAdapter : public quant::strategy::Strategy
+{
+    const quant::strategy::EmaCrossStrategy& impl_;
+public:
+    explicit EmaCrossAdapter(const quant::strategy::EmaCrossStrategy& impl) 
+        : impl_(impl) {}
+    
+    std::vector<quant::strategy::Signal> generate_signals(
+        const quant::core::Dataset& dataset) const override 
+    {
+        return impl_.generate_signals(dataset);
+    }
+    
+    quant::strategy::Signal generate_signal_at(
+        const quant::core::Dataset& dataset, 
+        std::size_t index) const override 
+    {
+        return impl_.generate_signal_at(dataset, index);
+    }
+};
+
+// ═════════════════════════════════════════════════════════════
+// METRICS: Hitung Max Drawdown dari equity curve
+// ═════════════════════════════════════════════════════════════
+static double calculateMaxDrawdown(const std::vector<double>& equity)
+{
+    if (equity.size() < 2) return 0.0;
+    
+    double peak = equity[0];
+    double max_dd = 0.0;
+    
+    for (const double& val : equity)
+    {
+        if (val > peak) peak = val;
+        double dd = (peak - val) / peak;
+        if (dd > max_dd) max_dd = dd;
+    }
+    return max_dd;
+}
+
+static void printBacktestResults(
+    const std::string& name,
+    const quant::backtest::Portfolio& portfolio,
+    double initial_cash)
+{
+    const auto& equity = portfolio.equityCurve();
+    double final_equity = portfolio.equity();
+    double total_return = (final_equity - initial_cash) / initial_cash * 100.0;
+    double max_dd = calculateMaxDrawdown(equity);
+    
+    printHeader("BACKTEST RESULT: " + name, '-');
+    
+    std::cout << "  " << std::left << std::setw(28) << "Initial Cash"
+              << ": $" << fmt(initial_cash) << '\n';
+    std::cout << "  " << std::left << std::setw(28) << "Final Equity"
+              << ": $" << fmt(final_equity) << '\n';
+    std::cout << "  " << std::left << std::setw(28) << "Total Return"
+              << ": " << fmt(total_return) << "%\n";
+    std::cout << "  " << std::left << std::setw(28) << "Max Drawdown"
+              << ": " << fmt(max_dd * 100.0) << "%\n";
+    std::cout << "  " << std::left << std::setw(28) << "Final Position"
+              << ": " << fmt(portfolio.position()) << " BTC\n";
+    std::cout << "  " << std::left << std::setw(28) << "Final Cash"
+              << ": $" << fmt(portfolio.cash()) << '\n';
+    
+    // Equity curve snapshot (last 10)
+    if (!equity.empty())
+    {
+        std::cout << '\n';
+        std::cout << "  " << std::left << std::setw(28) << "Equity Curve (last 10)"
+                  << ": ";
+        std::size_t start = (equity.size() > 10) ? equity.size() - 10 : 0;
+        for (std::size_t i = start; i < equity.size(); ++i)
+        {
+            std::cout << fmt(equity[i]) << (i + 1 < equity.size() ? ", " : "");
+        }
+        std::cout << '\n';
+    }
     std::cout << '\n';
 }
 
-// ─────────────────────────────────────────────────────────────
+} // anonymous namespace
+
+// ═════════════════════════════════════════════════════════════
 // MAIN
-// ─────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════
 int main()
 {
     try
@@ -108,13 +175,14 @@ int main()
         // =========================================================
         // 1. KONFIGURASI
         // =========================================================
-        const std::string csvPath    = "/home/nvoinxv/Documents/Quant_Research_C++/BTCUSDT.csv";
-        const std::size_t ewmaPeriod = 20;
-        const std::size_t rsiPeriod  = 14;
-        const std::size_t chopPeriod = 14;
+        const std::string csvPath     = "/home/nvoinxv/Documents/Quant_Research_C++/BTCUSDT.csv";
+        const double initialCash      = 10000.0;
+        const std::size_t ewmaPeriod  = 20;
+        const std::size_t rsiPeriod   = 14;
+        const std::size_t chopPeriod  = 14;
 
         // =========================================================
-        // 2. LOAD DATA DARI CSV → BUILD DATASET
+        // 2. LOAD DATA
         // =========================================================
         quant::data::CSVReader reader;
         auto candles = reader.read(csvPath);
@@ -124,20 +192,17 @@ int main()
             throw std::runtime_error("CSV file is empty or failed to load.");
         }
 
-        // Build Dataset (strategi butuh struct Dataset, bukan vector<Candle> mentah)
+        // Build Dataset (untuk strategi manual & engine)
         quant::core::Dataset dataset;
         dataset.symbol   = "BTCUSDT";
         dataset.interval = "5m";
-        dataset.candles  = std::move(candles);
+        dataset.candles  = candles; // copy untuk dataset
 
-        // Extract Close Prices untuk indikator
+        // Extract closes untuk indikator
         std::vector<double> closePrices;
         closePrices.reserve(dataset.size());
-
         for (const auto& c : dataset.candles)
-        {
             closePrices.push_back(c.close);
-        }
 
         // =========================================================
         // 3. HITUNG INDIKATOR
@@ -151,70 +216,54 @@ int main()
         double lastCHOP = chopValues.empty() ? 0.0 : chopValues.back();
 
         // =========================================================
-        // 4. OUTPUT INDIKATOR (Professional Dashboard)
+        // 4. DASHBOARD INDIKATOR
         // =========================================================
-        printHeader("QUANTITATIVE INDICATOR & STRATEGY ENGINE");
+        printHeader("QUANTITATIVE INDICATOR & BACKTEST ENGINE");
         std::cout << "  Asset : BTCUSDT | Timeframe : 5m | Spot Market\n";
+        std::cout << "  Initial Capital : $" << fmt(initialCash) << '\n';
         printSeparator('=');
         std::cout << '\n';
 
-        // ── Dataset Info ──
+        // Dataset Info
         printHeader("DATASET INFORMATION");
         std::cout << "  " << std::left << std::setw(28) << "CSV Source"
                   << ": " << csvPath << '\n';
-        std::cout << "  " << std::left << std::setw(28) << "Total Candles Loaded"
+        std::cout << "  " << std::left << std::setw(28) << "Total Candles"
                   << ": " << dataset.size() << '\n';
-        std::cout << "  " << std::left << std::setw(28) << "First Close Price"
+        std::cout << "  " << std::left << std::setw(28) << "First Close"
                   << ": " << fmt4(closePrices.front()) << '\n';
-        std::cout << "  " << std::left << std::setw(28) << "Last Close Price"
+        std::cout << "  " << std::left << std::setw(28) << "Last Close"
                   << ": " << fmt4(closePrices.back()) << '\n';
         std::cout << "  " << std::left << std::setw(28) << "Price Range"
                   << ": " << fmt4(*std::min_element(closePrices.begin(), closePrices.end()))
                   << " - " << fmt4(*std::max_element(closePrices.begin(), closePrices.end())) << '\n';
         std::cout << '\n';
 
-        // ── Konfigurasi Indikator ──
-        printHeader("INDICATOR CONFIGURATION");
-        std::cout << "  " << std::left << std::setw(28) << "EWMA Period"
-                  << ": " << ewmaPeriod << '\n';
-        std::cout << "  " << std::left << std::setw(28) << "RSI Period (Wilder)"
-                  << ": " << rsiPeriod << '\n';
-        std::cout << "  " << std::left << std::setw(28) << "Choppiness Index Period"
-                  << ": " << chopPeriod << '\n';
-        std::cout << '\n';
-
-        // ── Hasil Perhitungan ──
+        // Latest Values
         printHeader("LATEST INDICATOR VALUES");
         std::cout << "  " << std::left << std::setw(28) << "EWMA (" + std::to_string(ewmaPeriod) + ")"
                   << ": " << fmt4(lastEWMA) << '\n';
         std::cout << "  " << std::left << std::setw(28) << "RSI Wilder (" + std::to_string(rsiPeriod) + ")"
                   << ": " << fmt(lastRSI) << '\n';
-        std::cout << "  " << std::left << std::setw(28) << "Choppiness Index (" + std::to_string(chopPeriod) + ")"
+        std::cout << "  " << std::left << std::setw(28) << "Choppiness Index"
                   << ": " << fmt(lastCHOP) << '\n';
         std::cout << '\n';
 
-        // ── Interpretasi Market ──
+        // Market Interpretation
         printHeader("MARKET INTERPRETATION");
-
-        std::string rsiSignal = (lastRSI > 70.0) ? "OVERBOUGHT (Bearish Bias)"
-                              : (lastRSI < 30.0) ? "OVERSOLD (Bullish Bias)"
+        std::string rsiSignal = (lastRSI > 70.0) ? "OVERBOUGHT (Bearish)"
+                              : (lastRSI < 30.0) ? "OVERSOLD (Bullish)"
                               : "NEUTRAL";
         std::cout << "  " << std::left << std::setw(28) << "RSI Signal"
                   << ": " << rsiSignal << '\n';
-
-        std::string ewmaSignal = (closePrices.back() > lastEWMA) ? "Price Above EWMA (Bullish)"
-                               : "Price Below EWMA (Bearish)";
-        std::cout << "  " << std::left << std::setw(28) << "EWMA Signal"
-                  << ": " << ewmaSignal << '\n';
-
-        std::string chopSignal = (lastCHOP > 61.8) ? "CHOPPY / SIDEWAYS"
-                               : (lastCHOP < 38.2) ? "TRENDING"
-                               : "TRANSITION PHASE";
-        std::cout << "  " << std::left << std::setw(28) << "Choppiness Signal"
-                  << ": " << chopSignal << '\n';
+        std::cout << "  " << std::left << std::setw(28) << "EWMA Bias"
+                  << ": " << ((closePrices.back() > lastEWMA) ? "Bullish" : "Bearish") << '\n';
+        std::cout << "  " << std::left << std::setw(28) << "Market Regime"
+                  << ": " << ((lastCHOP > 61.8) ? "Choppy/Sideways" : 
+                              (lastCHOP < 38.2) ? "Trending" : "Transition") << '\n';
         std::cout << '\n';
 
-        // ── Tabel History ──
+        // Recent History
         printHeader("RECENT HISTORY (Last 10 Candles)");
         printSeparator('-');
         std::cout << "  " << std::left
@@ -225,10 +274,8 @@ int main()
                   << std::setw(16) << "CHOP"
                   << '\n';
         printSeparator('-');
-
         std::size_t displayCount = std::min<std::size_t>(10, dataset.size());
         std::size_t offset       = dataset.size() - displayCount;
-
         for (std::size_t i = 0; i < displayCount; ++i)
         {
             std::size_t idx = offset + i;
@@ -244,56 +291,57 @@ int main()
         std::cout << '\n';
 
         // =========================================================
-        // 5. STRATEGY SIGNAL GENERATION (Batch Processing)
+        // 5. STRATEGY BACKTEST VIA ENGINE
         // =========================================================
-        printHeader("STRATEGY BACKTEST SIGNALS");
+        printHeader("STRATEGY BACKTEST RESULTS");
 
-        // ── Breakout: Donchian Channel ──
-        quant::strategy::BreakoutStrategy breakout(
-            20,     // lookback period
-            1,      // confirmation bars
-            0.001,  // 0.1% breakout threshold
-            false   // volume confirmation off
-        );
-        auto breakoutSignals = breakout.generate_signals(dataset);
-        printSignals("BREAKOUT (Donchian Channel, 20)", breakoutSignals);
+        // ── Breakout ──
+        quant::strategy::BreakoutStrategy breakout(20, 1, 0.001, false);
+        BreakoutAdapter breakoutAdapter(breakout);
+        quant::backtest::Engine engineBreakout(candles, initialCash);
+        engineBreakout.run(breakoutAdapter);
+        printBacktestResults("BREAKOUT (Donchian 20)", engineBreakout.portfolio(), initialCash);
 
-        // ── EMA Cross: 9/21 (Crypto 5m Optimized) ──
-        quant::strategy::EmaCrossStrategy emaCross(
-            9,      // short period
-            21,     // long period
-            1,      // confirmation bars
-            0.0,    // no threshold
-            false   // volume confirmation off
-        );
-        auto emaSignals = emaCross.generate_signals(dataset);
-        printSignals("EMA CROSS (9/21 Golden/Death Cross)", emaSignals);
+        // ── EMA Cross ──
+        quant::strategy::EmaCrossStrategy emaCross(9, 21, 1, 0.0, false);
+        EmaCrossAdapter emaAdapter(emaCross);
+        quant::backtest::Engine engineEma(candles, initialCash);
+        engineEma.run(emaAdapter);
+        printBacktestResults("EMA CROSS (9/21)", engineEma.portfolio(), initialCash);
 
-        // ── Mean Reversion: RSI Wilder + Choppiness Filter ──
-        quant::strategy::MeanReversionStrategy meanRev(
-            9,      // RSI period (responsive, kurangi lagging)
-            25.0,   // oversold threshold (agresif)
-            75.0,   // overbought threshold (agresif)
-            14,     // CHOP period
-            50.0,   // CHOP threshold (entry hanya saat choppy)
-            0,      // confirmation bars 0 (entry cepat)
-            false   // volume confirmation off
-        );
-        auto mrSignals = meanRev.generate_signals(dataset);
-        printSignals("MEAN REVERSION (RSI 9 + CHOP Filter)", mrSignals);
+        // ── Mean Reversion ──
+        quant::strategy::MeanReversionStrategy meanRev(9, 25.0, 75.0, 14, 50.0, 0, false);
+        quant::backtest::Engine engineMr(candles, initialCash);
+        engineMr.run(meanRev); // Langsung, karena udah inherit Strategy
+        printBacktestResults("MEAN REVERSION (RSI 9 + CHOP)", engineMr.portfolio(), initialCash);
 
         // =========================================================
-        // 6. CROSS-STRATEGY SUMMARY
+        // 6. CROSS-STRATEGY COMPARISON
         // =========================================================
-        printHeader("SIGNAL SUMMARY");
-        std::cout << "  " << std::left << std::setw(32) << "Breakout Signals"
-                  << ": " << breakoutSignals.size() << '\n';
-        std::cout << "  " << std::left << std::setw(32) << "EMA Cross Signals"
-                  << ": " << emaSignals.size() << '\n';
-        std::cout << "  " << std::left << std::setw(32) << "Mean Reversion Signals"
-                  << ": " << mrSignals.size() << '\n';
+        printHeader("CROSS-STRATEGY COMPARISON");
+        std::cout << "  " << std::left << std::setw(24) << "Strategy"
+                  << std::setw(16) << "Final Equity"
+                  << std::setw(16) << "Return %"
+                  << std::setw(16) << "Max DD %"
+                  << '\n';
+        printSeparator('-');
+        
+        auto printRow = [&](const std::string& name, const quant::backtest::Portfolio& p) {
+            double ret = (p.equity() - initialCash) / initialCash * 100.0;
+            double dd = calculateMaxDrawdown(p.equityCurve()) * 100.0;
+            std::cout << "  " << std::left << std::setw(24) << name
+                      << std::setw(16) << fmt(p.equity())
+                      << std::setw(16) << fmt(ret)
+                      << std::setw(16) << fmt(dd)
+                      << '\n';
+        };
+        
+        printRow("Breakout", engineBreakout.portfolio());
+        printRow("EMA Cross", engineEma.portfolio());
+        printRow("Mean Reversion", engineMr.portfolio());
+        
         printSeparator('=');
-        std::cout << "           ANALYSIS COMPLETED SUCCESSFULLY\n";
+        std::cout << "           BACKTEST COMPLETED SUCCESSFULLY\n";
         printSeparator('=');
 
         return EXIT_SUCCESS;

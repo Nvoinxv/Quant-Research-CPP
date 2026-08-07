@@ -7,16 +7,10 @@
 #include "backtest/broker.hpp"
 #include "backtest/portofolio.hpp"
 #include "strategy/strategy.hpp"
+#include "strategy/signal.hpp"
 
 namespace quant::backtest
 {
-
-enum class Signal
-{
-    Hold,
-    Buy,
-    Sell
-};
 
 class Engine
 {
