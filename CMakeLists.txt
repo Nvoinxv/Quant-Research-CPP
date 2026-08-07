@@ -8,6 +8,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Include headers directory
 include_directories(${CMAKE_SOURCE_DIR}/headers)
 
+# Find libcurl (required by tokocrypto_loader.cpp)
+find_package(CURL REQUIRED)
+
 # Gather all .cpp files automatically
 file(GLOB_RECURSE SOURCES 
     ${CMAKE_SOURCE_DIR}/main.cpp
@@ -16,6 +19,9 @@ file(GLOB_RECURSE SOURCES
 
 # Executable
 add_executable(quant_research ${SOURCES})
+
+# Link external libraries
+target_link_libraries(quant_research PRIVATE CURL::libcurl)
 
 # Optional: Enable strict warnings for GCC/Clang
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
