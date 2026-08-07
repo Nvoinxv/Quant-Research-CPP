@@ -1,5 +1,5 @@
 #include "data/csv_reader.hpp"
-#include "market/candle.hpp"
+#include "core/candle.hpp"
 
 #include "indicator/choppiness_index.hpp"
 #include "indicator/ewma.hpp"
