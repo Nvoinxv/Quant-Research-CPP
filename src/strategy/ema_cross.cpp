@@ -1,7 +1,7 @@
 #include "strategy/ema_cross.hpp"
 #include "core/dataset.hpp"
 #include "core/candle.hpp"
-#include "indicators/ewma.hpp"
+#include "indicator/ewma.hpp"
 #include <stdexcept>
 #include <cmath>
 

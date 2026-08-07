@@ -1,8 +1,8 @@
 #include "strategy/mean_reversion.hpp"
 #include "core/dataset.hpp"
 #include "core/candle.hpp"
-#include "indicators/rsi_wilder.hpp"
-#include "indicators/choppiness_index.hpp"
+#include "indicator/rsi_wilder.hpp"
+#include "indicator/choppiness_index.hpp"
 #include <stdexcept>
 #include <cmath>
 #include <algorithm>
