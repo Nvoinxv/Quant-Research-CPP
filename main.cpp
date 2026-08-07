@@ -19,6 +19,8 @@
 
 #include <algorithm>
 #include <exception>
+#include <filesystem>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -49,19 +51,8 @@ static void printHeader(const std::string& title, char border = '=')
     printSeparator(border);
 }
 
-static std::string signalTypeToString(quant::strategy::SignalType type)
-{
-    switch (type)
-    {
-        case quant::strategy::SignalType::BUY:  return "BUY ";
-        case quant::strategy::SignalType::SELL: return "SELL";
-        default: return "HOLD";
-    }
-}
-
 // ═════════════════════════════════════════════════════════════
 // ADAPTER: Wrapper biar Breakout & EMA Cross bisa masuk Engine
-// (Sementara sampai lu update header mereka jadi inherit Strategy)
 // ═════════════════════════════════════════════════════════════
 namespace {
 
@@ -167,8 +158,45 @@ static void printBacktestResults(
 }
 
 // ═════════════════════════════════════════════════════════════
-// PLOT HELPERS
+// PLOT HELPERS  (with debug path & fallback)
 // ═════════════════════════════════════════════════════════════
+static std::filesystem::path getOutputDir()
+{
+    // Prefer project root (where CSV is), fallback to CWD
+    std::filesystem::path csvDir = "/home/nvoinxv/Documents/Quant_Research_C++";
+    if (std::filesystem::exists(csvDir) && std::filesystem::is_directory(csvDir))
+        return csvDir;
+    return std::filesystem::current_path();
+}
+
+static bool savePlot(const std::string& filename,
+                     const std::function<bool(const std::string&)>& renderFn)
+{
+    std::filesystem::path outDir = getOutputDir();
+    std::filesystem::path outPath = outDir / filename;
+
+    std::cout << "  [SAVE] Attempting: " << outPath.string() << '\n';
+
+    if (renderFn(outPath.string()))
+    {
+        std::cout << "  [OK]   Saved to " << outPath.string() << '\n';
+        return true;
+    }
+
+    // Fallback: try CWD
+    std::filesystem::path cwdPath = std::filesystem::current_path() / filename;
+    std::cout << "  [WARN] Primary path failed. Retrying: " << cwdPath.string() << '\n';
+
+    if (renderFn(cwdPath.string()))
+    {
+        std::cout << "  [OK]   Saved to " << cwdPath.string() << '\n';
+        return true;
+    }
+
+    std::cout << "  [ERR]  Failed to save " << filename << " (check permissions)\n";
+    return false;
+}
+
 static void renderEquityPlot(
     const quant::core::Dataset& dataset,
     const quant::backtest::Portfolio& portfolio,
@@ -195,7 +223,6 @@ static void renderEquityPlot(
     }
     else
     {
-        // Fallback: build EquityPoint vector manually
         std::vector<quant::plot::EquityPoint> points;
         points.reserve(equity.size());
         for (std::size_t i = 0; i < equity.size(); ++i)
@@ -206,10 +233,9 @@ static void renderEquityPlot(
         plotter.loadEquityData(points);
     }
 
-    if (plotter.renderToFile(filename))
-        std::cout << "  [PLOT] Equity curve saved to " << filename << '\n';
-    else
-        std::cout << "  [ERR]  Failed to save " << filename << '\n';
+    savePlot(filename, [&](const std::string& path) {
+        return plotter.renderToFile(path);
+    });
 }
 
 } // anonymous namespace
@@ -229,6 +255,8 @@ int main()
         const std::size_t ewmaPeriod  = 20;
         const std::size_t rsiPeriod   = 14;
         const std::size_t chopPeriod  = 14;
+
+        std::cout << "[INFO] CWD: " << std::filesystem::current_path().string() << "\n\n";
 
         // =========================================================
         // 2. LOAD DATA
@@ -338,21 +366,18 @@ int main()
         // =========================================================
         printHeader("STRATEGY BACKTEST RESULTS");
 
-        // ── Breakout ──
         quant::strategy::BreakoutStrategy breakout(20, 1, 0.001, false);
         BreakoutAdapter breakoutAdapter(breakout);
         quant::backtest::Engine engineBreakout(candles, initialCash);
         engineBreakout.run(breakoutAdapter);
         printBacktestResults("BREAKOUT (Donchian 20)", engineBreakout.portfolio(), initialCash);
 
-        // ── EMA Cross ──
         quant::strategy::EmaCrossStrategy emaCross(9, 21, 1, 0.0, false);
         EmaCrossAdapter emaAdapter(emaCross);
         quant::backtest::Engine engineEma(candles, initialCash);
         engineEma.run(emaAdapter);
         printBacktestResults("EMA CROSS (9/21)", engineEma.portfolio(), initialCash);
 
-        // ── Mean Reversion ──
         quant::strategy::MeanReversionStrategy meanRev(9, 25.0, 75.0, 14, 50.0, 0, false);
         quant::backtest::Engine engineMr(candles, initialCash);
         engineMr.run(meanRev);
@@ -398,10 +423,9 @@ int main()
             quant::plot::CandlestickPlotter candlePlotter(cfg);
             candlePlotter.loadDataset(dataset);
 
-            if (candlePlotter.renderToFile("output_candlestick.svg"))
-                std::cout << "  [PLOT] Candlestick chart saved to output_candlestick.svg\n";
-            else
-                std::cout << "  [ERR]  Failed to save candlestick chart\n";
+            savePlot("output_candlestick.svg", [&](const std::string& path) {
+                return candlePlotter.renderToFile(path);
+            });
         }
         std::cout << '\n';
 
@@ -425,7 +449,6 @@ int main()
             quant::plot::IndicatorPlotter indPlotter;
             indPlotter.loadDataset(dataset);
 
-            // EWMA overlay line di main chart
             if (!ewmaValues.empty())
             {
                 quant::plot::IndicatorSeries ewmaSeries;
@@ -433,12 +456,11 @@ int main()
                 ewmaSeries.values    = ewmaValues;
                 ewmaSeries.type      = quant::plot::IndicatorType::Line;
                 ewmaSeries.panel     = quant::plot::IndicatorPanel::Main;
-                ewmaSeries.color     = "#f59e0b";  // amber
+                ewmaSeries.color     = "#f59e0b";
                 ewmaSeries.lineWidth = 2.0;
                 indPlotter.addIndicator(ewmaSeries);
             }
 
-            // RSI oscillator di sub-panel 1
             if (!rsiValues.empty())
             {
                 quant::plot::IndicatorSeries rsiSeries;
@@ -446,13 +468,12 @@ int main()
                 rsiSeries.values  = rsiValues;
                 rsiSeries.type    = quant::plot::IndicatorType::Oscillator;
                 rsiSeries.panel   = quant::plot::IndicatorPanel::Sub1;
-                rsiSeries.color   = "#8b5cf6";  // violet
+                rsiSeries.color   = "#8b5cf6";
                 rsiSeries.oscMin  = 0.0;
                 rsiSeries.oscMax  = 100.0;
                 indPlotter.addIndicator(rsiSeries);
             }
 
-            // Choppiness Index line di sub-panel 2
             if (!chopValues.empty())
             {
                 quant::plot::IndicatorSeries chopSeries;
@@ -460,15 +481,14 @@ int main()
                 chopSeries.values    = chopValues;
                 chopSeries.type      = quant::plot::IndicatorType::Line;
                 chopSeries.panel     = quant::plot::IndicatorPanel::Sub2;
-                chopSeries.color     = "#10b981";  // emerald
+                chopSeries.color     = "#10b981";
                 chopSeries.lineWidth = 1.5;
                 indPlotter.addIndicator(chopSeries);
             }
 
-            if (indPlotter.renderToFile("output_indicators.svg"))
-                std::cout << "  [PLOT] Indicator overlay saved to output_indicators.svg\n";
-            else
-                std::cout << "  [ERR]  Failed to save indicator overlay\n";
+            savePlot("output_indicators.svg", [&](const std::string& path) {
+                return indPlotter.renderToFile(path);
+            });
         }
         std::cout << '\n';
 
